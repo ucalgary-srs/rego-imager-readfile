@@ -19,6 +19,10 @@ $ python3 -m pip install rego-imager-readfile
 
 rego-imager-readfile officially supports Python 3.6+.
 
+## Examples
+
+Example Python notebooks can be found in the "examples" directory. Further, some examples can be found in the "Usage" section below.
+
 ## Usage
 
 Import the library using `import rego_imager_readfile`
