@@ -26,7 +26,7 @@ def read(file_list, workers=1):
     """
     # pre-allocate array sizes (optimization)
     predicted_num_frames = len(file_list) * 20
-    images = _np.empty([256, 256, predicted_num_frames], dtype=__REGO_DT)
+    images = _np.empty([512, 512, predicted_num_frames], dtype=__REGO_DT)
     metadata_dict_list = [{}] * predicted_num_frames
     problematic_file_list = []
 
@@ -163,12 +163,12 @@ def __rego_readfile_worker(file):
 
             # split dictionaries up per frame, exposure plus initial readout is
             # always the end of metadata for frame
-            if (key.startswith("Exposure plus initial readout")):
+            if (key.startswith("Exposure plus readout")):
                 metadata_dict_list.append(metadata_dict)
                 metadata_dict = {}
         elif line == b'65535\n':
             # there are 2 lines between "exposure plus read out" and the image
-            # data, the first is b'256 256\n' and the second is b'65535\n'
+            # data, the first is b'512 512\n' and the second is b'65535\n'
             #
             # read image
             try:
@@ -179,8 +179,8 @@ def __rego_readfile_worker(file):
                 # effectively an array of pixel values
                 image_np = _np.frombuffer(image_bytes, dtype=__REGO_DT)
 
-                # change 1d numpy array into 256x256 matrix with correctly located pixels
-                image_matrix = _np.reshape(image_np, (256, 256, 1))
+                # change 1d numpy array into 512x512 matrix with correctly located pixels
+                image_matrix = _np.reshape(image_np, (512, 512, 1))
             except Exception as e:
                 print("Failed reading image data frame: %s" % (str(e)))
                 metadata_dict_list.pop()  # remove corresponding metadata entry
