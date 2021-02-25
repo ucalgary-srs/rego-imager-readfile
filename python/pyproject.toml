@@ -1,7 +1,10 @@
 [tool.poetry]
 name = "rego-imager-readfile"
-version = "1.0.0"
+version = "1.0.1"
 description = "Read functions for REGO ASI PGM raw files"
+readme = "README.md"
+homepage = "https://github.com/ucalgary-aurora/rego-imager-readfile"
+repository = "https://github.com/ucalgary-aurora/rego-imager-readfile"
 authors = ["Darren Chaddock <dchaddoc@ucalgary.ca>"]
 license = "MIT"
 packages = [
