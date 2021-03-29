@@ -1,15 +1,15 @@
 # Author: Lukas Vollmerhaus
 # Date: 2020-10-16
 
-import gzip as _gzip
-import numpy as _np
-import signal as _signal
-from multiprocessing import Pool as _Pool
+import gzip as gzip
+import numpy as np
+import signal as signal
+from multiprocessing import Pool as Pool
 
 # globals
-__REGO_IMAGE_SIZE_BYTES = 512 * 512 * 2
-__REGO_DT = _np.dtype("uint16")
-__REGO_DT = __REGO_DT.newbyteorder('>')  # force big endian byte ordering
+REGO_IMAGE_SIZE_BYTES = 512 * 512 * 2
+REGO_DT = np.dtype("uint16")
+REGO_DT = REGO_DT.newbyteorder('>')  # force big endian byte ordering
 
 
 def read(file_list, workers=1):
@@ -26,14 +26,14 @@ def read(file_list, workers=1):
     """
     # pre-allocate array sizes (optimization)
     predicted_num_frames = len(file_list) * 20
-    images = _np.empty([512, 512, predicted_num_frames], dtype=__REGO_DT)
+    images = np.empty([512, 512, predicted_num_frames], dtype=REGO_DT)
     metadata_dict_list = [{}] * predicted_num_frames
     problematic_file_list = []
 
     # set up process pool (ignore SIGINT before spawning pool so child processes inherit SIGINT handler)
-    original_sigint_handler = _signal.signal(_signal.SIGINT, _signal.SIG_IGN)
-    pool = _Pool(processes=workers)
-    _signal.signal(_signal.SIGINT, original_sigint_handler)  # restore SIGINT handler
+    original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    pool = Pool(processes=workers)
+    signal.signal(signal.SIGINT, original_sigint_handler)  # restore SIGINT handler
 
     # if input is just a single file name in a string, convert to a list to be fed to the workers
     if isinstance(file_list, str):
@@ -46,6 +46,7 @@ def read(file_list, workers=1):
         data = pool.map(__rego_readfile_worker, file_list)
     except KeyboardInterrupt:
         pool.terminate()  # gracefully kill children
+        return np.empty((0, 0, 0), dtype=REGO_DT), [], []
     else:
         pool.close()
 
@@ -74,10 +75,10 @@ def read(file_list, workers=1):
 
     # trim unused elements from predicted array sizes
     metadata_dict_list = metadata_dict_list[0:list_position]
-    images = _np.delete(images, range(list_position, predicted_num_frames), axis=2)
+    images = np.delete(images, range(list_position, predicted_num_frames), axis=2)
 
     # ensure entire array views as uint16
-    images = images.astype(_np.uint16)
+    images = images.astype(np.uint16)
 
     # return
     data = None
@@ -86,7 +87,7 @@ def read(file_list, workers=1):
 
 def __rego_readfile_worker(file):
     # init
-    images = _np.array([])
+    images = np.array([])
     metadata_dict_list = []
     first_frame = True
     metadata_dict = {}
@@ -98,7 +99,7 @@ def __rego_readfile_worker(file):
     # check file extension to see if it's gzipped or not
     try:
         if file.endswith("pgm.gz"):
-            unzipped = _gzip.open(file, mode='rb')
+            unzipped = gzip.open(file, mode='rb')
         elif file.endswith("pgm"):
             unzipped = open(file, mode='rb')
         else:
@@ -119,7 +120,7 @@ def __rego_readfile_worker(file):
             print("Error reading before image data in file '%s'" % (file))
             problematic = True
             metadata_dict_list = []
-            images = _np.array([])
+            images = np.array([])
             error_message = "error reading before image data: %s" % (str(e))
             return images, metadata_dict_list, problematic, file, error_message
 
@@ -173,14 +174,14 @@ def __rego_readfile_worker(file):
             # read image
             try:
                 # read the image size in bytes from the file
-                image_bytes = unzipped.read(__REGO_IMAGE_SIZE_BYTES)
+                image_bytes = unzipped.read(REGO_IMAGE_SIZE_BYTES)
 
                 # format bytes into numpy array of unsigned shorts (2byte numbers, 0-65536),
                 # effectively an array of pixel values
-                image_np = _np.frombuffer(image_bytes, dtype=__REGO_DT)
+                image_np = np.frombuffer(image_bytes, dtype=REGO_DT)
 
                 # change 1d numpy array into 512x512 matrix with correctly located pixels
-                image_matrix = _np.reshape(image_np, (512, 512, 1))
+                image_matrix = np.reshape(image_np, (512, 512, 1))
             except Exception as e:
                 print("Failed reading image data frame: %s" % (str(e)))
                 metadata_dict_list.pop()  # remove corresponding metadata entry
@@ -193,7 +194,7 @@ def __rego_readfile_worker(file):
                 images = image_matrix
                 first_frame = False
             else:
-                images = _np.dstack([images, image_matrix])  # depth stack images (on 3rd axis)
+                images = np.dstack([images, image_matrix])  # depth stack images (on 3rd axis)
 
     # close gzip file
     unzipped.close()
