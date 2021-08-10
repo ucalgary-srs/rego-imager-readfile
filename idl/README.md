@@ -12,6 +12,10 @@ NOTE: these programs are the exact same as those used to read THEMIS ASI data (h
 - IDL 6.0+ is required
 - Windows 7/10, Linux
 
+## Supported Datasets
+
+- REGO raw: [stream0](https://data.phys.ucalgary.ca/sort_by_project/GO-Canada/REGO/stream0) PGM files
+
 ## Installation
 
 Download the programs and include in your IDL Path or compile manually as needed.
