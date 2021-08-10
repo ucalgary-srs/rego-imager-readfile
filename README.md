@@ -6,3 +6,6 @@ This repository contains code for reading Redline All-Sky Imager (REGO ASI) stre
 
 There exists readfile software for both IDL and Python. Navigate to each language subdirectory in this repository to see their specific readmes. The IDL software is exactly the same as that written for THEMIS ASI (https://github.com/ucalgary-aurora/themis-imager-readfile).
 
+## Supported Datasets
+
+- REGO raw: [stream0](https://data.phys.ucalgary.ca/sort_by_project/GO-Canada/REGO/stream0) PGM files
