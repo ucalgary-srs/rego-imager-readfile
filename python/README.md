@@ -7,6 +7,10 @@
 
 Python library for reading REGO All-Sky Imager (ASI) stream0 raw PGM-file data. The data can be found at https://data.phys.ucalgary.ca.
 
+## Supported Datasets
+
+- REGO raw: [stream0](https://data.phys.ucalgary.ca/sort_by_project/GO-Canada/REGO/stream0) PGM files
+
 ## Installation
 
 The rego-imager-readfile library is available on PyPI:
