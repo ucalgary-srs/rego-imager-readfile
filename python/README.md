@@ -21,7 +21,7 @@ $ python3 -m pip install rego-imager-readfile
 
 ## Supported Python Versions
 
-rego-imager-readfile officially supports Python 3.6+.
+rego-imager-readfile officially supports Python 3.8+.
 
 ## Examples
 
