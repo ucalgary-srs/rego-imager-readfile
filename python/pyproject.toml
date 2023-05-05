@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rego-imager-readfile"
-version = "1.1.0"
+version = "1.1.1"
 description = "Read functions for REGO ASI PGM raw files"
 readme = "README.md"
 homepage = "https://github.com/ucalgary-aurora/rego-imager-readfile"
@@ -13,9 +13,9 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.8.1"
-numpy = "^1.24.0"
+numpy = "^1.21.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"
 flake8 = "^6.0.0"
 pylint = "^2.16.0"
