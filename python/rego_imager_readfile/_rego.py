@@ -1,10 +1,7 @@
-# Author: Lukas Vollmerhaus
-# Date: 2020-10-16
-
-import gzip as gzip
+import gzip
+import signal
 import numpy as np
-import signal as signal
-from multiprocessing import Pool as Pool
+from multiprocessing import Pool
 
 # globals
 REGO_IMAGE_SIZE_BYTES = 512 * 512 * 2
@@ -31,9 +28,14 @@ def read(file_list, workers=1):
     problematic_file_list = []
 
     # set up process pool (ignore SIGINT before spawning pool so child processes inherit SIGINT handler)
-    original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-    pool = Pool(processes=workers)
-    signal.signal(signal.SIGINT, original_sigint_handler)  # restore SIGINT handler
+    try:
+        original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        pool = Pool(processes=workers)
+        signal.signal(signal.SIGINT, original_sigint_handler)  # restore SIGINT handler
+    except ValueError:
+        # likely the read call is being used within a context that doesn't support the usage
+        # of signals in this way, proceed without it
+        pool = Pool(processes=workers)
 
     # if input is just a single file name in a string, convert to a list to be fed to the workers
     if isinstance(file_list, str):
