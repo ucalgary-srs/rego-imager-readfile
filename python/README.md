@@ -31,6 +31,8 @@ Example Python notebooks can be found in the "examples" directory. Further, some
 
 Import the library using `import rego_imager_readfile`
 
+**Warning**: On Windows, be sure to put any `read` calls into a `main()` method. This is because we utilize the multiprocessing library and the method of forking processes in Windows requires it. Note that if you're using Jupyter or other IPython-based interfaces, this is not required.
+
 ### Read a single file
 
 ```python
