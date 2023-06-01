@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rego-imager-readfile"
-version = "1.2.0"
+version = "1.2.1"
 description = "Read functions for REGO ASI PGM raw files"
 readme = "README.md"
 homepage = "https://github.com/ucalgary-aurora/rego-imager-readfile"

@@ -2,6 +2,7 @@ import gzip
 import signal
 import numpy as np
 from multiprocessing import Pool
+from functools import partial
 
 # globals
 REGO_IMAGE_SIZE_BYTES = 512 * 512 * 2
@@ -9,7 +10,7 @@ REGO_DT = np.dtype("uint16")
 REGO_DT = REGO_DT.newbyteorder('>')  # force big endian byte ordering
 
 
-def read(file_list, workers=1):
+def read(file_list, workers=1, quiet=False):
     """
     Read in a single PGM file or set of PGM files
 
@@ -17,6 +18,8 @@ def read(file_list, workers=1):
     :type file_list: str
     :param workers: number of worker processes to spawn, defaults to 1
     :type workers: int, optional
+    :param quiet: reduce output while reading data
+    :type quiet: bool, optional
 
     :return: images, metadata dictionaries, and problematic files
     :rtype: numpy.ndarray, list[dict], list[dict]
@@ -47,7 +50,7 @@ def read(file_list, workers=1):
         # NOTE: structure of data - data[file][metadata dictionary lists = 1, images = 0][frame]
         data = []
         try:
-            data = pool.map(__rego_readfile_worker, file_list)
+            data = pool.map(partial(__rego_readfile_worker, quiet=quiet), file_list)
         except KeyboardInterrupt:
             pool.terminate()  # gracefully kill children
             return np.empty((0, 0, 0), dtype=REGO_DT), [], []
@@ -57,7 +60,7 @@ def read(file_list, workers=1):
         # don't bother using multiprocessing with one worker, just call the worker function directly
         data = []
         for f in file_list:
-            data.append(__rego_readfile_worker(f))
+            data.append(__rego_readfile_worker(f, quiet=quiet))
 
     # reorganize data
     list_position = 0
@@ -94,7 +97,7 @@ def read(file_list, workers=1):
     return images, metadata_dict_list, problematic_file_list
 
 
-def __rego_readfile_worker(file):
+def __rego_readfile_worker(file, quiet=False):
     # init
     images = np.array([])
     metadata_dict_list = []
@@ -112,10 +115,12 @@ def __rego_readfile_worker(file):
         elif file.endswith("pgm"):
             unzipped = open(file, mode='rb')
         else:
-            print("Unrecognized file type: %s" % (file))
+            if (quiet is False):
+                print("Unrecognized file type: %s" % (file))
             return images, metadata_dict_list, problematic, file, error_message
     except Exception as e:
-        print("Failed to open file '%s' " % (file))
+        if (quiet is False):
+            print("Failed to open file '%s' " % (file))
         problematic = True
         error_message = "failed to open file: %s" % (str(e))
         return images, metadata_dict_list, problematic, file, error_message
@@ -126,7 +131,8 @@ def __rego_readfile_worker(file):
         try:
             line = unzipped.readline()
         except Exception as e:
-            print("Error reading before image data in file '%s'" % (file))
+            if (quiet is False):
+                print("Error reading before image data in file '%s'" % (file))
             problematic = True
             metadata_dict_list = []
             images = np.array([])
@@ -148,7 +154,8 @@ def __rego_readfile_worker(file):
                 line_decoded = line.decode("ascii")
             except Exception as e:
                 # skip metadata line if it can't be decoded, likely corrupt file
-                print("Error decoding metadata line: %s (line='%s', file='%s')" % (str(e), line, file))
+                if (quiet is False):
+                    print("Error decoding metadata line: %s (line='%s', file='%s')" % (str(e), line, file))
                 problematic = True
                 error_message = "error decoding metadata line: %s" % (str(e))
                 continue
@@ -192,7 +199,8 @@ def __rego_readfile_worker(file):
                 # change 1d numpy array into 512x512 matrix with correctly located pixels
                 image_matrix = np.reshape(image_np, (512, 512, 1))
             except Exception as e:
-                print("Failed reading image data frame: %s" % (str(e)))
+                if (quiet is False):
+                    print("Failed reading image data frame: %s" % (str(e)))
                 metadata_dict_list.pop()  # remove corresponding metadata entry
                 problematic = True
                 error_message = "image data read failure: %s" % (str(e))
