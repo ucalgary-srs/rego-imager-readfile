@@ -57,6 +57,14 @@ Import the library using `import rego_imager_readfile`
 >>> img, meta, problematic_files = rego_imager_readfile.read(file_list, workers=4)
 ```
 
+### Read with no output
+
+```python
+>>> import trex_imager_readfile, glob
+>>> file_list = glob.glob("path/to/files/2020/01/01/fsmi_rego-654/ut06/*6300.pgm*")
+>>> img, meta, problematic_files = rego_imager_readfile.read(file_list, workers=4, quiet=True)
+```
+
 ## Development
 
 Clone the repository and install dependencies using Poetry.
