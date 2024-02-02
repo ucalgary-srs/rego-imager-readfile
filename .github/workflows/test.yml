@@ -32,8 +32,8 @@ jobs:
     - name: Style guide enforcing
       working-directory: ./python
       run: |
-        make test-linting
+        poetry run make test-linting
     - name: Run tests (pytest)
       working-directory: ./python
       run: |
-        poetry run pytest
+        poetry run test-pytest
