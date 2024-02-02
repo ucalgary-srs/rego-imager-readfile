@@ -10,7 +10,11 @@ REGO_DT = np.dtype("uint16")
 REGO_DT = REGO_DT.newbyteorder('>')  # force big endian byte ordering
 
 
-def read(file_list, workers=1, quiet=False):
+def read(file_list,
+         workers=1,
+         first_frame=False,
+         no_metadata=False,
+         quiet=False):
     """
     Read in a single PGM file or set of PGM files
 
@@ -18,6 +22,11 @@ def read(file_list, workers=1, quiet=False):
     :type file_list: str
     :param workers: number of worker processes to spawn, defaults to 1
     :type workers: int, optional
+    :param first_frame: only read the first frame for each file, defaults to False
+    :type first_frame: bool, optional
+    :param no_metadata: exclude reading of metadata (performance optimization if
+                        the metadata is not needed), defaults to False
+    :type no_metadata: bool, optional
     :param quiet: reduce output while reading data
     :type quiet: bool, optional
 
@@ -38,9 +47,15 @@ def read(file_list, workers=1, quiet=False):
     if (workers > 1):
         try:
             # set up process pool (ignore SIGINT before spawning pool so child processes inherit SIGINT handler)
-            original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-            pool = Pool(processes=workers)
-            signal.signal(signal.SIGINT, original_sigint_handler)  # restore SIGINT handler
+            original_sigint_handler = signal.signal(signal.SIGINT,
+                                                    signal.SIG_IGN)
+            pool = Pool(
+                processes=workers,
+                first_frame=first_frame,
+                no_metadata=no_metadata,
+            )
+            signal.signal(signal.SIGINT,
+                          original_sigint_handler)  # restore SIGINT handler
         except ValueError:
             # likely the read call is being used within a context that doesn't support the usage
             # of signals in this way, proceed without it
@@ -50,7 +65,8 @@ def read(file_list, workers=1, quiet=False):
         # NOTE: structure of data - data[file][metadata dictionary lists = 1, images = 0][frame]
         data = []
         try:
-            data = pool.map(partial(__rego_readfile_worker, quiet=quiet), file_list)
+            data = pool.map(partial(__rego_readfile_worker, quiet=quiet),
+                            file_list)
         except KeyboardInterrupt:
             pool.terminate()  # gracefully kill children
             return np.empty((0, 0, 0), dtype=REGO_DT), [], []
@@ -82,13 +98,17 @@ def read(file_list, workers=1, quiet=False):
         real_num_frames = data[i][0].shape[2]
 
         # metadata dictionary list at data[][1]
-        metadata_dict_list[list_position:list_position + real_num_frames] = data[i][1]
-        images[:, :, list_position:list_position + real_num_frames] = data[i][0]  # image arrays at data[][0]
+        metadata_dict_list[list_position:list_position +
+                           real_num_frames] = data[i][1]
+        images[:, :, list_position:list_position +
+               real_num_frames] = data[i][0]  # image arrays at data[][0]
         list_position = list_position + real_num_frames  # advance list position
 
     # trim unused elements from predicted array sizes
     metadata_dict_list = metadata_dict_list[0:list_position]
-    images = np.delete(images, range(list_position, predicted_num_frames), axis=2)
+    images = np.delete(images,
+                       range(list_position, predicted_num_frames),
+                       axis=2)
 
     # ensure entire array views as uint16
     images = images.astype(np.uint16)
@@ -156,7 +176,9 @@ def __rego_readfile_worker(file, quiet=False):
             except Exception as e:
                 # skip metadata line if it can't be decoded, likely corrupt file
                 if (quiet is False):
-                    print("Error decoding metadata line: %s (line='%s', file='%s')" % (str(e), line, file))
+                    print(
+                        "Error decoding metadata line: %s (line='%s', file='%s')"
+                        % (str(e), line, file))
                 problematic = True
                 error_message = "error decoding metadata line: %s" % (str(e))
                 continue
@@ -212,7 +234,8 @@ def __rego_readfile_worker(file, quiet=False):
                 images = image_matrix
                 first_frame = False
             else:
-                images = np.dstack([images, image_matrix])  # depth stack images (on 3rd axis)
+                images = np.dstack([images, image_matrix
+                                    ])  # depth stack images (on 3rd axis)
 
     # close gzip file
     unzipped.close()

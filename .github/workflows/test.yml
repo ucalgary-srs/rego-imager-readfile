@@ -32,8 +32,8 @@ jobs:
     - name: Style guide enforcing (flake8)
       working-directory: ./python
       run: |
-        poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        poetry run flake8 . --count --ignore=W391 --exit-zero --max-complexity=20 --max-line-length=127 --statistics
+        apt install -y make
+        make test-linting
     - name: Run tests (pytest)
       working-directory: ./python
       run: |
