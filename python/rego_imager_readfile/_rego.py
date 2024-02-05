@@ -5,7 +5,8 @@ from multiprocessing import Pool
 from functools import partial
 
 # globals
-REGO_IMAGE_SIZE_BYTES = 512 * 512 * 2
+REGO_EXPECTED_HEIGHT = 512
+REGO_EXPECTED_WIDTH = 512
 REGO_DT = np.dtype("uint16")
 REGO_DT = REGO_DT.newbyteorder('>')  # force big endian byte ordering
 
@@ -29,12 +30,6 @@ def read(file_list, workers=1, first_frame=False, no_metadata=False, quiet=False
     :return: images, metadata dictionaries, and problematic files
     :rtype: numpy.ndarray, list[dict], list[dict]
     """
-    # pre-allocate array sizes (optimization)
-    predicted_num_frames = len(file_list) * 20
-    images = np.empty([512, 512, predicted_num_frames], dtype=REGO_DT)
-    metadata_dict_list = [{}] * predicted_num_frames
-    problematic_file_list = []
-
     # if input is just a single file name in a string, convert to a list to be fed to the workers
     if isinstance(file_list, str):
         file_list = [file_list]
@@ -78,7 +73,23 @@ def read(file_list, workers=1, first_frame=False, no_metadata=False, quiet=False
                 quiet=quiet,
             ))
 
-    # reorganize data
+    # derive number of frames to prepare for
+    total_num_frames = 0
+    image_height = REGO_EXPECTED_HEIGHT
+    image_width = REGO_EXPECTED_WIDTH
+    for i in range(0, len(data)):
+        if (data[i][2] is True):
+            continue
+        total_num_frames += data[i][0].shape[2]
+        image_height = data[i][0].shape[0]
+        image_width = data[i][0].shape[1]
+
+    # pre-allocate array sizes
+    images = np.empty([image_height, image_width, total_num_frames], dtype=REGO_DT)
+    metadata_dict_list = [{}] * total_num_frames
+    problematic_file_list = []
+
+    # populate data
     list_position = 0
     for i in range(0, len(data)):
         # check if file was problematic
@@ -87,6 +98,7 @@ def read(file_list, workers=1, first_frame=False, no_metadata=False, quiet=False
                 "filename": data[i][3],
                 "error_message": data[i][4],
             })
+            continue
 
         # check if any data was read in
         if (len(data[i][1]) == 0):
@@ -103,7 +115,7 @@ def read(file_list, workers=1, first_frame=False, no_metadata=False, quiet=False
 
     # trim unused elements from predicted array sizes
     metadata_dict_list = metadata_dict_list[0:list_position]
-    images = np.delete(images, range(list_position, predicted_num_frames), axis=2)
+    images = np.delete(images, range(list_position, total_num_frames), axis=2)
 
     # ensure entire array views as uint16
     images = images.astype(np.uint16)
@@ -135,15 +147,25 @@ def __rego_readfile_worker(file, first_frame=False, no_metadata=False, quiet=Fal
                 print("Unrecognized file type: %s" % (file))
             problematic = True
             error_message = "Unrecognized file type"
+            try:
+                unzipped.close()
+            except Exception:
+                pass
             return images, metadata_dict_list, problematic, file, error_message
     except Exception as e:
         if (quiet is False):
             print("Failed to open file '%s' " % (file))
         problematic = True
         error_message = "failed to open file: %s" % (str(e))
+        try:
+            unzipped.close()
+        except Exception:
+            pass
         return images, metadata_dict_list, problematic, file, error_message
 
     # read the file
+    prev_line = None
+    line = None
     while True:
         # break out depending on first_frame param
         if (first_frame is True and is_first is False):
@@ -151,6 +173,7 @@ def __rego_readfile_worker(file, first_frame=False, no_metadata=False, quiet=Fal
 
         # read a line
         try:
+            prev_line = line
             line = unzipped.readline()
         except Exception as e:
             if (quiet is False):
@@ -159,6 +182,10 @@ def __rego_readfile_worker(file, first_frame=False, no_metadata=False, quiet=Fal
             metadata_dict_list = []
             images = np.array([])
             error_message = "error reading before image data: %s" % (str(e))
+            try:
+                unzipped.close()
+            except Exception:
+                pass
             return images, metadata_dict_list, problematic, file, error_message
 
         # break loop at end of file
@@ -215,19 +242,26 @@ def __rego_readfile_worker(file, first_frame=False, no_metadata=False, quiet=Fal
                     metadata_dict = {}
         elif line == b'65535\n':
             # there are 2 lines between "exposure plus read out" and the image
-            # data, the first is b'512 512\n' and the second is b'65535\n'
+            # data, the first is the image dimensions and the second is the max
+            # value
             #
+            # check the previous line to get the dimensions of the image
+            prev_line_split = prev_line.decode("ascii").strip().split()
+            image_width = int(prev_line_split[0])
+            image_height = int(prev_line_split[1])
+            bytes_to_read = image_width * image_height * 2  # 16-bit image depth
+
             # read image
             try:
                 # read the image size in bytes from the file
-                image_bytes = unzipped.read(REGO_IMAGE_SIZE_BYTES)
+                image_bytes = unzipped.read(bytes_to_read)
 
                 # format bytes into numpy array of unsigned shorts (2byte numbers, 0-65536),
                 # effectively an array of pixel values
                 image_np = np.frombuffer(image_bytes, dtype=REGO_DT)
 
-                # change 1d numpy array into 512x512 matrix with correctly located pixels
-                image_matrix = np.reshape(image_np, (512, 512, 1))
+                # change 1d numpy array into matrix with correctly located pixels
+                image_matrix = np.reshape(image_np, (image_height, image_width, 1))
             except Exception as e:
                 if (quiet is False):
                     print("Failed reading image data frame: %s" % (str(e)))
@@ -245,6 +279,13 @@ def __rego_readfile_worker(file, first_frame=False, no_metadata=False, quiet=Fal
 
     # close gzip file
     unzipped.close()
+
+    # check to see if the image is empty
+    if (images.size == 0):
+        if (quiet is False):
+            print("Error reading image file: found no image data")
+        problematic = True
+        error_message = "no image data"
 
     # return
     return images, metadata_dict_list, problematic, file, error_message
